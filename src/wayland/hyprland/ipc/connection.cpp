@@ -21,6 +21,7 @@
 
 #include "../../../core/model.hpp"
 #include "../../../core/qmlscreen.hpp"
+#include "client.hpp"
 #include "monitor.hpp"
 #include "workspace.hpp"
 
@@ -67,6 +68,7 @@ HyprlandIpc::HyprlandIpc() {
 	this->eventSocket.connectToServer(this->mEventSocketPath, QLocalSocket::ReadOnly);
 	this->refreshMonitors(true);
 	this->refreshWorkspaces(true);
+	this->refreshClients();
 }
 
 QString HyprlandIpc::requestSocketPath() const { return this->mRequestSocketPath; }
@@ -165,6 +167,8 @@ void HyprlandIpc::dispatch(const QString& request) {
 ObjectModel<HyprlandMonitor>* HyprlandIpc::monitors() { return &this->mMonitors; }
 
 ObjectModel<HyprlandWorkspace>* HyprlandIpc::workspaces() { return &this->mWorkspaces; }
+
+ObjectModel<HyprlandClient>* HyprlandIpc::clients() { return &this->mClients; }
 
 QVector<QByteArrayView> HyprlandIpc::parseEventArgs(QByteArrayView event, quint16 count) {
 	auto args = QVector<QByteArrayView>();
@@ -491,6 +495,64 @@ void HyprlandIpc::refreshWorkspaces(bool canCreate) {
 			for (auto* workspace: removedWorkspaces) {
 				this->mWorkspaces.removeObject(workspace);
 				delete workspace;
+			}
+		}
+	});
+}
+
+HyprlandClient* HyprlandIpc::findClientByAddress(qint64 address) {
+	const auto& mList = this->mClients.valueList();
+	HyprlandClient* workspace = nullptr;
+
+	auto workspaceIter = std::ranges::find_if(mList, [&](HyprlandClient* m) {
+		return m->bindableAddress().value() == address;
+	});
+
+	return workspace = workspaceIter == mList.end() ? nullptr : *workspaceIter;
+}
+
+void HyprlandIpc::refreshClients() {
+	if (this->requestingClients) return;
+	this->requestingClients = true;
+
+	this->makeRequest("j/clients", [this](bool success, const QByteArray& resp) {
+		this->requestingClients = false;
+		if (!success) return;
+
+		qCDebug(logHyprlandIpc) << "Parsing clients response";
+		auto json = QJsonDocument::fromJson(resp).array();
+
+		const auto& mList = this->mClients.valueList();
+
+		for (auto entry: json) {
+			auto object = entry.toObject().toVariantMap();
+
+			bool ok = false;just lint-changed
+			auto address = object.value("address").toString().toLongLong(&ok, 16);
+
+			if (!ok) {
+				qCDebug(logHyprlandIpc) << "Invalid address in client entry, skipping:" << object;
+				continue;
+			}
+
+			auto clientsIter = std::ranges::find_if(mList, [&](HyprlandClient* c) {
+				return c->bindableAddress().value() == address;
+			});
+
+			auto* client = clientsIter == mList.end() ? nullptr : *clientsIter;
+			auto exists = client != nullptr;
+
+			if (!exists) {
+				client = new HyprlandClient(this);
+			}
+
+			client->updateFromObject(object);
+
+			if (!exists) {
+				qCDebug(logHyprlandIpc) << "New client created with address" << address << "title"
+				                        << client->bindableTitle().value() << "workspace id"
+				                        << client->bindableWorkspaceId().value();
+				this->mClients.insertObject(client, -1);
 			}
 		}
 	});
