@@ -10,6 +10,7 @@
 #include "../../../core/qmlscreen.hpp"
 #include "connection.hpp"
 #include "monitor.hpp"
+#include "client.hpp"
 
 namespace qs::hyprland::ipc {
 
@@ -32,6 +33,9 @@ class HyprlandIpcQml: public QObject {
 	/// > [!NOTE] Named workspaces have a negative id, and will appear before unnamed workspaces.
 	QSDOC_TYPE_OVERRIDE(ObjectModel<qs::hyprland::ipc::HyprlandWorkspace>*);
 	Q_PROPERTY(UntypedObjectModel* workspaces READ workspaces CONSTANT);
+	/// All hyprland clients (windows).
+	QSDOC_TYPE_OVERRIDE(ObjectModel<qs::hyprland::ipc::HyprlandClient>*);
+	Q_PROPERTY(UntypedObjectModel* clients READ clients CONSTANT);
 	// clang-format on
 	QML_NAMED_ELEMENT(Hyprland);
 	QML_SINGLETON;
@@ -63,6 +67,7 @@ public:
 	[[nodiscard]] static QBindable<HyprlandWorkspace*> bindableFocusedWorkspace();
 	[[nodiscard]] static ObjectModel<HyprlandMonitor>* monitors();
 	[[nodiscard]] static ObjectModel<HyprlandWorkspace>* workspaces();
+	[[nodiscard]] static ObjectModel<HyprlandClient>* clients();
 
 signals:
 	/// Emitted for every event that comes in through the hyprland event socket (socket2).

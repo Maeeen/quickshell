@@ -59,4 +59,8 @@ ObjectModel<HyprlandWorkspace>* HyprlandIpcQml::workspaces() {
 	return HyprlandIpc::instance()->workspaces();
 }
 
+ObjectModel<HyprlandClient>* HyprlandIpcQml::clients() {
+	return HyprlandIpc::instance()->clients();
+}
+
 } // namespace qs::hyprland::ipc
