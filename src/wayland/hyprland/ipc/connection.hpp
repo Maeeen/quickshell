@@ -19,6 +19,7 @@ namespace qs::hyprland::ipc {
 
 class HyprlandMonitor;
 class HyprlandWorkspace;
+class HyprlandClient;
 
 } // namespace qs::hyprland::ipc
 
@@ -89,14 +90,17 @@ public:
 
 	[[nodiscard]] ObjectModel<HyprlandMonitor>* monitors();
 	[[nodiscard]] ObjectModel<HyprlandWorkspace>* workspaces();
+	[[nodiscard]] ObjectModel<HyprlandClient>* clients();
 
 	// No byId because these preemptively create objects. The given id is set if created.
 	HyprlandWorkspace* findWorkspaceByName(const QString& name, bool createIfMissing, qint32 id = -1);
 	HyprlandMonitor* findMonitorByName(const QString& name, bool createIfMissing, qint32 id = -1);
+	HyprlandClient* findClientByAddress(qint64 address);
 
 	// canCreate avoids making ghost workspaces when the connection races
 	void refreshWorkspaces(bool canCreate);
 	void refreshMonitors(bool canCreate);
+	void refreshClients();
 
 	// The last argument may contain commas, so the count is required.
 	[[nodiscard]] static QVector<QByteArrayView> parseEventArgs(QByteArrayView event, quint16 count);
@@ -128,10 +132,12 @@ private:
 	bool valid = false;
 	bool requestingMonitors = false;
 	bool requestingWorkspaces = false;
+	bool requestingClients = false;
 	bool monitorsRequested = false;
 
 	ObjectModel<HyprlandMonitor> mMonitors {this};
 	ObjectModel<HyprlandWorkspace> mWorkspaces {this};
+	ObjectModel<HyprlandClient> mClients {this};
 
 	HyprlandIpcEvent event {this};
 
