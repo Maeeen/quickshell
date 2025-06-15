@@ -14,6 +14,7 @@
 #include <qlogging.h>
 #include <qloggingcategory.h>
 #include <qobject.h>
+#include <qproperty.h>
 #include <qtenvironmentvariables.h>
 #include <qtmetamacros.h>
 #include <qtypes.h>
@@ -354,6 +355,8 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		if (this->bFocusedMonitor != nullptr) {
 			auto* workspace = this->findWorkspaceByName(name, true, id);
 			this->bFocusedMonitor->setActiveWorkspace(workspace);
+			// Workspace has been visited, can dismiss the "urgent" notification
+			workspace->bindableUrgent().setValue(false);
 			qCDebug(logHyprlandIpc) << "Workspace" << id << "activated on"
 			                        << this->bFocusedMonitor->bindableName().value();
 		}
@@ -394,6 +397,139 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		// the fullscreen state changed, but this falls apart if you move a fullscreen
 		// window between workspaces.
 		this->refreshWorkspaces(false);
+	} else if (event->name == "openwindow") {
+		// new window opened
+		auto args = event->parseView(4);
+		bool ok = false;
+		auto windowAddress = args.at(0).toLongLong(&ok, 16);
+
+		if (!ok) return;
+
+		auto workspaceName = QString::fromUtf8(args.at(1));
+		auto windowTitle = QString::fromUtf8(args.at(2));
+		auto windowClass = QString::fromUtf8(args.at(3));
+
+		HyprlandWorkspace* workspace = this->findWorkspaceByName(workspaceName, false);
+		if (!workspace) {
+			qCWarning(logHyprlandIpc) << "Got openwindow event for workspace" << workspaceName
+			                          << "which was not previously tracked.";
+			return;
+		}
+		auto id = workspace->bindableId().value();
+
+		HyprlandClient* client = this->findClientByAddress(windowAddress);
+		const bool existed = client != nullptr;
+		if (client) {
+			// It is not expected that the client is already tracked
+			qCWarning(logHyprlandIpc) << "Got openwindow event for client with address" << windowAddress
+			                          << "which was already tracked.";
+		} else {
+			client = new HyprlandClient(this);
+		}
+		client->updateInitial(windowAddress, windowTitle, id);
+
+		if (!existed) {
+			this->refreshClients();
+			this->mClients.insertObject(client, -1);
+			qCDebug(logHyprlandIpc) << "New client created with address" << windowAddress << "title"
+			                        << windowTitle << "workspace id" << id;
+		}
+	} else if (event->name == "activewindowv2") {
+		auto args = event->parseView(1);
+		bool ok = false;
+		auto windowAddress = args.at(0).toLongLong(&ok, 16);
+
+		if (!ok) return;
+
+		// Iterate through all clients and set if they are active or not
+		const auto& mList = this->mClients.valueList();
+		Qt::beginPropertyUpdateGroup();
+		for (auto* client: mList) {
+			if (client->bindableAddress().value() == windowAddress) {
+				client->bindableActive().setValue(true);
+				qCDebug(logHyprlandIpc) << "Client with address" << windowAddress << "is now active.";
+			} else {
+				client->bindableActive().setValue(false);
+			}
+		}
+		Qt::endPropertyUpdateGroup();
+	} else if (event->name == "closewindow") {
+		auto args = event->parseView(1);
+		bool ok = false;
+		auto windowAddress = args.at(0).toLongLong(&ok, 16);
+
+		if (!ok) return;
+
+		const auto& mList = this->mClients.valueList();
+		auto clientIter = std::ranges::find_if(mList, [windowAddress](HyprlandClient* c) {
+			return c->bindableAddress().value() == windowAddress;
+		});
+		if (clientIter == mList.end()) {
+			qCWarning(logHyprlandIpc) << "Got closewindow event for client with address" << windowAddress
+			                          << "which was not previously tracked.";
+			return;
+		}
+		HyprlandClient* client = *clientIter;
+		auto index = clientIter - mList.begin();
+		this->mClients.removeAt(index);
+
+		delete client;
+	} else if (event->name == "windowtitlev2") {
+		auto args = event->parseView(2);
+		bool ok = false;
+		auto windowAddress = args.at(0).toLongLong(&ok, 16);
+		auto windowTitle = QString::fromUtf8(args.at(1));
+
+		if (!ok) return;
+
+		HyprlandClient* client = this->findClientByAddress(windowAddress);
+		if (!client) {
+			qCWarning(logHyprlandIpc) << "Got windowtitlev2 event for client with address"
+			                          << windowAddress << "which was not previously tracked.";
+			return;
+		}
+		client->bindableTitle().setValue(windowTitle);
+	} else if (event->name == "movewindowv2") {
+		auto args = event->parseView(3);
+		bool ok = false;
+		auto windowAddress = args.at(0).toLongLong(&ok, 16);
+		auto workspaceId = args.at(1).toInt();
+
+		HyprlandClient* client = this->findClientByAddress(windowAddress);
+		if (!client) {
+			qCWarning(logHyprlandIpc) << "Got movewindowv2 event for client with address" << windowAddress
+			                          << "which was not previously tracked.";
+			return;
+		}
+
+		client->bindableWorkspaceId().setValue(workspaceId);
+	} else if (event->name == "urgent") {
+		auto args = event->parseView(1);
+		bool ok = false;
+		auto windowAddress = args.at(0).toLongLong(&ok, 16);
+		HyprlandClient* client = this->findClientByAddress(windowAddress);
+
+		if (!client) {
+			qCWarning(logHyprlandIpc) << "Got urgent event for client with address" << windowAddress
+			                          << "which was not previously tracked.";
+			return;
+		}
+
+		auto workspaceId = client->bindableWorkspaceId().value();
+
+		const auto& mList = this->mWorkspaces.valueList();
+		auto clientIter = std::ranges::find_if(mList, [workspaceId](HyprlandWorkspace* c) {
+			return c->bindableId().value() == workspaceId;
+		});
+
+		if (clientIter == mList.end()) {
+			qCWarning(logHyprlandIpc) << "Client with address " << windowAddress << " refers to "
+			                          << "untracked workspace " << workspaceId;
+			return;
+		}
+
+		HyprlandWorkspace* workspace = *clientIter;
+		workspace->bindableUrgent().setValue(true);
 	}
 }
 
