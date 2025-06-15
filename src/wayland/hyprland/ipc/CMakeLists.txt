@@ -3,6 +3,7 @@ qt_add_library(quickshell-hyprland-ipc STATIC
 	monitor.cpp
 	workspace.cpp
 	qml.cpp
+	client.cpp
 )
 
 qt_add_qml_module(quickshell-hyprland-ipc
