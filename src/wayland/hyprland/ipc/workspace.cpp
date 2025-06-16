@@ -110,12 +110,19 @@ void HyprlandWorkspace::setMonitor(HyprlandMonitor* monitor) {
 
 void HyprlandWorkspace::onClientAdded(QObject* object) {
 	QObject::connect(object, &QObject::destroyed, this, &HyprlandWorkspace::onClientRemoved);
+
+	auto* client = dynamic_cast<HyprlandClient*>(object);
 	QObject::connect(
-	    dynamic_cast<HyprlandClient*>(object),
+	    client,
 	    &HyprlandClient::urgentChanged,
 	    this,
 	    &HyprlandWorkspace::onClientUrgent
 	);
+
+	// If the workspace is focused, and the window is urgent, let's set it to false.
+	if (client->bindableUrgent().value() && this->bFocused) {
+		client->bindableUrgent().setValue(false);
+	}
 	emit this->onClientUrgent();
 }
 
@@ -127,7 +134,6 @@ void HyprlandWorkspace::onClientRemoved(QObject* object) {
 void HyprlandWorkspace::onClientUrgent() {
 	// If the workspace is focused, the urgent state is not relevant.
 	if (this->bFocused) return;
-
 	auto& clients = this->mClients.valueList();
 	this->bUrgent = std::ranges::any_of(clients, [](HyprlandClient* client) {
 		return client->bindableUrgent().value();
