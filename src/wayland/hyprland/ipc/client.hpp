@@ -21,6 +21,11 @@ class HyprlandClient: public QObject {
 	Q_PROPERTY(bool active READ default NOTIFY activeChanged BINDABLE bindableActive);
 	/// Whether the client is urgent or not
 	Q_PROPERTY(bool urgent READ default NOTIFY urgentChanged BINDABLE bindableUrgent);
+	/// The monitor where the client is currently located
+	Q_PROPERTY(
+	    qs::hyprland::ipc::HyprlandMonitor* monitor READ default NOTIFY monitorChanged BINDABLE
+	        bindableMonitor
+	);
 
 	QML_ELEMENT;
 	QML_UNCREATABLE("HyprlandClients must be retrieved from the HyprlandIpc object.");
@@ -45,6 +50,7 @@ public:
 	[[nodiscard]] QBindable<HyprlandWorkspace*> bindableWorkspace() { return &this->bWorkspace; }
 	[[nodiscard]] QBindable<bool> bindableActive() { return &this->bActive; }
 	[[nodiscard]] QBindable<bool> bindableUrgent() { return &this->bUrgent; }
+	[[nodiscard]] QBindable<HyprlandMonitor*> bindableMonitor() { return &this->bMonitor; }
 
 signals:
 	void addressChanged();
@@ -52,6 +58,7 @@ signals:
 	void workspaceChanged();
 	void activeChanged();
 	void urgentChanged();
+	void monitorChanged();
 
 private:
 	HyprlandIpc* ipc;
@@ -66,6 +73,12 @@ private:
 	);
 	Q_OBJECT_BINDABLE_PROPERTY(HyprlandClient, bool, bActive, &HyprlandClient::activeChanged);
 	Q_OBJECT_BINDABLE_PROPERTY(HyprlandClient, bool, bUrgent, &HyprlandClient::urgentChanged);
+	Q_OBJECT_BINDABLE_PROPERTY(
+	    HyprlandClient,
+	    HyprlandMonitor*,
+	    bMonitor,
+	    &HyprlandClient::monitorChanged
+	);
 };
 
 } // namespace qs::hyprland::ipc

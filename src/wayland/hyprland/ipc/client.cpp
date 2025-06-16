@@ -10,7 +10,11 @@
 
 namespace qs::hyprland::ipc {
 
-HyprlandClient::HyprlandClient(HyprlandIpc* ipc): QObject(ipc), ipc(ipc) {}
+HyprlandClient::HyprlandClient(HyprlandIpc* ipc): QObject(ipc), ipc(ipc) {
+	this->bMonitor.setBinding([this]() {
+		return this->bWorkspace ? this->bWorkspace->bindableMonitor().value() : nullptr;
+	});
+}
 
 void HyprlandClient::updateInitial(
     qint64 address,
