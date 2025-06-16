@@ -10,11 +10,15 @@ namespace qs::hyprland::ipc {
 
 HyprlandClient::HyprlandClient(HyprlandIpc* ipc): QObject(ipc), ipc(ipc) {}
 
-void HyprlandClient::updateInitial(qint64 address, const QString& title, qint32 workspaceId) {
+void HyprlandClient::updateInitial(
+    qint64 address,
+    const QString& title,
+    const QString& workspaceName
+) {
 	Qt::beginPropertyUpdateGroup();
 	this->bAddress = address;
 	this->bTitle = title;
-	this->bWorkspaceId = workspaceId;
+	this->bWorkspace = this->ipc->findWorkspaceByName(workspaceName, false);
 	Qt::endPropertyUpdateGroup();
 }
 
@@ -30,10 +34,13 @@ void HyprlandClient::updateFromObject(QVariantMap object) {
 	}
 	this->bTitle = title;
 
-	auto workspace = object.value("workspace").toMap();
-	auto workspaceId = workspace.value("id").value<qint32>();
+	auto workspaceMap = object.value("workspace").toMap();
+	auto workspaceName = workspaceMap.value("name").value<QString>();
 
-	this->bWorkspaceId = workspaceId;
+	HyprlandWorkspace* workspace = this->ipc->findWorkspaceByName(workspaceName, false);
+	if (!workspace) return;
+
+	this->bWorkspace = workspace;
 }
 
 } // namespace qs::hyprland::ipc

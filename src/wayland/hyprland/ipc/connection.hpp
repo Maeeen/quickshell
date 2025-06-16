@@ -25,6 +25,7 @@ class HyprlandClient;
 
 Q_DECLARE_OPAQUE_POINTER(qs::hyprland::ipc::HyprlandWorkspace*);
 Q_DECLARE_OPAQUE_POINTER(qs::hyprland::ipc::HyprlandMonitor*);
+Q_DECLARE_OPAQUE_POINTER(qs::hyprland::ipc::HyprlandClient*);
 
 namespace qs::hyprland::ipc {
 

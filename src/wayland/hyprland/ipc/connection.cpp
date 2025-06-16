@@ -415,7 +415,6 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			                          << "which was not previously tracked.";
 			return;
 		}
-		auto id = workspace->bindableId().value();
 
 		HyprlandClient* client = this->findClientByAddress(windowAddress);
 		const bool existed = client != nullptr;
@@ -426,13 +425,13 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		} else {
 			client = new HyprlandClient(this);
 		}
-		client->updateInitial(windowAddress, windowTitle, id);
+		client->updateInitial(windowAddress, windowTitle, workspace->bindableName().value());
 
 		if (!existed) {
 			this->refreshClients();
 			this->mClients.insertObject(client, -1);
 			qCDebug(logHyprlandIpc) << "New client created with address" << windowAddress << "title"
-			                        << windowTitle << "workspace id" << id;
+			                        << windowTitle << "workspace id" << workspace->bindableId().value();
 		}
 	} else if (event->name == "activewindowv2") {
 		auto args = event->parseView(1);
@@ -493,7 +492,7 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		auto args = event->parseView(3);
 		bool ok = false;
 		auto windowAddress = args.at(0).toLongLong(&ok, 16);
-		auto workspaceId = args.at(1).toInt();
+		auto workspaceName = QString::fromUtf8(args.at(2));
 
 		HyprlandClient* client = this->findClientByAddress(windowAddress);
 		if (!client) {
@@ -502,7 +501,14 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			return;
 		}
 
-		client->bindableWorkspaceId().setValue(workspaceId);
+		HyprlandWorkspace* workspace = this->findWorkspaceByName(workspaceName, false);
+		if (!workspace) {
+			qCWarning(logHyprlandIpc) << "Got movewindowv2 event for workspace" << args.at(2)
+			                          << "which was not previously tracked.";
+			return;
+		}
+
+		client->bindableWorkspace().setValue(workspace);
 	} else if (event->name == "urgent") {
 		auto args = event->parseView(1);
 		bool ok = false;
@@ -515,20 +521,7 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			return;
 		}
 
-		auto workspaceId = client->bindableWorkspaceId().value();
-
-		const auto& mList = this->mWorkspaces.valueList();
-		auto clientIter = std::ranges::find_if(mList, [workspaceId](HyprlandWorkspace* c) {
-			return c->bindableId().value() == workspaceId;
-		});
-
-		if (clientIter == mList.end()) {
-			qCWarning(logHyprlandIpc) << "Client with address " << windowAddress << " refers to "
-			                          << "untracked workspace " << workspaceId;
-			return;
-		}
-
-		HyprlandWorkspace* workspace = *clientIter;
+		HyprlandWorkspace* workspace = client->bindableWorkspace().value();
 		workspace->bindableUrgent().setValue(true);
 	}
 }
@@ -686,8 +679,7 @@ void HyprlandIpc::refreshClients() {
 
 			if (!exists) {
 				qCDebug(logHyprlandIpc) << "New client created with address" << address << "title"
-				                        << client->bindableTitle().value() << "workspace id"
-				                        << client->bindableWorkspaceId().value();
+				                        << client->bindableTitle().value();
 				this->mClients.insertObject(client, -1);
 			}
 		}
