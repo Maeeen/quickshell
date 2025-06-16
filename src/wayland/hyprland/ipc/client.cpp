@@ -56,7 +56,7 @@ void HyprlandClient::setWorkspace(HyprlandWorkspace* workspace) {
 		this->bWorkspace->clients()->removeObject(this);
 	}
 	this->bWorkspace = workspace;
-	this->bWorkspace->clients()->insertObject(this, -1);
+	this->bWorkspace->clients()->insertObject(this);
 	emit this->workspaceChanged();
 	Qt::endPropertyUpdateGroup();
 }

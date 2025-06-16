@@ -69,6 +69,9 @@ public:
 	[[nodiscard]] QVariantMap lastIpcObject() const;
 
 	void setMonitor(HyprlandMonitor* monitor);
+	/// Removes the urgent status from this workspace, and consequently
+	/// from all clients.
+	void clearUrgent();
 
 signals:
 	void idChanged();
@@ -82,6 +85,10 @@ signals:
 
 private slots:
 	void onMonitorDestroyed();
+	void onClientAdded(QObject* object);
+	void onClientRemoved(QObject* object);
+	void onClientUrgent();
+	void onFocusedChanged();
 
 private:
 	HyprlandIpc* ipc;

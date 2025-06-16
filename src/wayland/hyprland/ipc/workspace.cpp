@@ -1,4 +1,5 @@
 #include "workspace.hpp"
+#include <algorithm>
 #include <utility>
 
 #include <qcontainerfwd.h>
@@ -28,6 +29,31 @@ HyprlandWorkspace::HyprlandWorkspace(HyprlandIpc* ipc): QObject(ipc), ipc(ipc) {
 	});
 
 	Qt::endPropertyUpdateGroup();
+
+	// The signals `onClientAdded` and `onClientRemoved` determine
+	// whether the workspace is urgent or not, based on the current
+	// clients. Therefore, we need to act after the clients have been
+	// removed/added from the workspace.
+	QObject::connect(
+	    &this->mClients,
+	    &UntypedObjectModel::objectInsertedPost,
+	    this,
+	    &HyprlandWorkspace::onClientAdded
+	);
+
+	QObject::connect(
+	    &this->mClients,
+	    &UntypedObjectModel::objectRemovedPost,
+	    this,
+	    &HyprlandWorkspace::onClientRemoved
+	);
+
+	QObject::connect(
+	    this,
+	    &HyprlandWorkspace::focusedChanged,
+	    this,
+	    &HyprlandWorkspace::onFocusedChanged
+	);
 }
 
 void HyprlandWorkspace::updateInitial(qint32 id, const QString& name) {
@@ -81,6 +107,43 @@ void HyprlandWorkspace::setMonitor(HyprlandMonitor* monitor) {
 
 	this->bMonitor = monitor;
 }
+
+void HyprlandWorkspace::onClientAdded(QObject* object) {
+	QObject::connect(object, &QObject::destroyed, this, &HyprlandWorkspace::onClientRemoved);
+	QObject::connect(
+	    dynamic_cast<HyprlandClient*>(object),
+	    &HyprlandClient::urgentChanged,
+	    this,
+	    &HyprlandWorkspace::onClientUrgent
+	);
+	emit this->onClientUrgent();
+}
+
+void HyprlandWorkspace::onClientRemoved(QObject* object) {
+	QObject::disconnect(object, nullptr, this, nullptr);
+	emit this->onClientUrgent();
+}
+
+void HyprlandWorkspace::onClientUrgent() {
+	// If the workspace is focused, the urgent state is not relevant.
+	if (this->bFocused) return;
+
+	auto& clients = this->mClients.valueList();
+	this->bUrgent = std::ranges::any_of(clients, [](HyprlandClient* client) {
+		return client->bindableUrgent().value();
+	});
+}
+
+void HyprlandWorkspace::clearUrgent() {
+	if (!this->bUrgent) return;
+
+	this->bUrgent = false;
+	for (auto* client: this->mClients.valueList()) {
+		client->bindableUrgent().setValue(false);
+	}
+}
+
+void HyprlandWorkspace::onFocusedChanged() { this->clearUrgent(); }
 
 void HyprlandWorkspace::onMonitorDestroyed() { this->bMonitor = nullptr; }
 

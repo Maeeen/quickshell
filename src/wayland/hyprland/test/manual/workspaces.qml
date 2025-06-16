@@ -12,7 +12,7 @@ FloatingWindow {
 
             ColumnLayout {
                 Text {
-                    text: "Workspace " + modelData.id
+                    text: "Workspace " + modelData.id + " (urgent: " + modelData.urgent + ")"
                 }
                 Repeater {
                     model: modelData.clients

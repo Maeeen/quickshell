@@ -356,7 +356,6 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			auto* workspace = this->findWorkspaceByName(name, true, id);
 			this->bFocusedMonitor->setActiveWorkspace(workspace);
 			// Workspace has been visited, can dismiss the "urgent" notification
-			workspace->bindableUrgent().setValue(false);
 			qCDebug(logHyprlandIpc) << "Workspace" << id << "activated on"
 			                        << this->bFocusedMonitor->bindableName().value();
 		}
