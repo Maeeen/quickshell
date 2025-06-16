@@ -28,6 +28,9 @@ class HyprlandWorkspace: public QObject {
 	Q_PROPERTY(bool hasFullscreen READ default NOTIFY focusedChanged BINDABLE bindableHasFullscreen);
 	/// If this workspace has a client which has emitted a urgent state.
 	Q_PROPERTY(bool urgent READ default NOTIFY urgentChanged BINDABLE bindableUrgent);
+	/// All hyprland clients (windows) that are part of the workspace.
+	QSDOC_TYPE_OVERRIDE(ObjectModel<qs::hyprland::ipc::HyprlandClient>*);
+	Q_PROPERTY(UntypedObjectModel* clients READ clients CONSTANT);
 	/// Last json returned for this workspace, as a javascript object.
 	///
 	/// > [!WARNING] This is *not* updated unless the workspace object is fetched again from
@@ -61,6 +64,8 @@ public:
 	[[nodiscard]] QBindable<bool> bindableUrgent() { return &this->bUrgent; }
 	[[nodiscard]] QBindable<HyprlandMonitor*> bindableMonitor() { return &this->bMonitor; }
 
+	[[nodiscard]] ObjectModel<HyprlandClient>* clients() { return &this->mClients; };
+
 	[[nodiscard]] QVariantMap lastIpcObject() const;
 
 	void setMonitor(HyprlandMonitor* monitor);
@@ -82,6 +87,8 @@ private:
 	HyprlandIpc* ipc;
 
 	QVariantMap mLastIpcObject;
+
+	ObjectModel<HyprlandClient> mClients {this};
 
 	// clang-format off
 	Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(HyprlandWorkspace, qint32, bId, -1, &HyprlandWorkspace::idChanged);

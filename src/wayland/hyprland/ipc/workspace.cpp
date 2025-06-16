@@ -7,6 +7,8 @@
 #include <qtmetamacros.h>
 #include <qtypes.h>
 
+#include "../../../core/model.hpp"
+#include "client.hpp"
 #include "connection.hpp"
 #include "monitor.hpp"
 

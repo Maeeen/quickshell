@@ -472,6 +472,12 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		auto index = clientIter - mList.begin();
 		this->mClients.removeAt(index);
 
+		// Remove from the workspace as well
+		HyprlandWorkspace* workspace = client->bindableWorkspace().value();
+		if (workspace) {
+			workspace->clients()->removeObject(client);
+		}
+
 		delete client;
 	} else if (event->name == "windowtitlev2") {
 		auto args = event->parseView(2);
@@ -508,7 +514,7 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			return;
 		}
 
-		client->bindableWorkspace().setValue(workspace);
+		client->setWorkspace(workspace);
 	} else if (event->name == "urgent") {
 		auto args = event->parseView(1);
 		bool ok = false;
@@ -521,8 +527,7 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			return;
 		}
 
-		HyprlandWorkspace* workspace = client->bindableWorkspace().value();
-		workspace->bindableUrgent().setValue(true);
+		client->bindableUrgent().setValue(true);
 	}
 }
 

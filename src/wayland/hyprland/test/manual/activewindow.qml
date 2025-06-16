@@ -17,6 +17,6 @@ FloatingWindow {
     component ClientItem: Text {
         required property HyprlandClient modelData
 
-        text: "Window 0x" + modelData.address.toString(16) + "; " + modelData.title + " (workspace: " + modelData.workspace.id + ")"
+        text: "Window 0x" + modelData.address.toString(16) + "; " + modelData.title + " (workspace: " + modelData.workspace.id + "," + "urgent: " + modelData.urgent + ")"
     }
 }

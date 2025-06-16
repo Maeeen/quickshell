@@ -19,6 +19,8 @@ class HyprlandClient: public QObject {
 	)
 	/// Whether the client is currently active or not
 	Q_PROPERTY(bool active READ default NOTIFY activeChanged BINDABLE bindableActive);
+	/// Whether the client is urgent or not
+	Q_PROPERTY(bool urgent READ default NOTIFY urgentChanged BINDABLE bindableUrgent);
 
 	QML_ELEMENT;
 	QML_UNCREATABLE("HyprlandClients must be retrieved from the HyprlandIpc object.");
@@ -33,16 +35,23 @@ public:
 	/// from `j/clients` request`.
 	void updateFromObject(QVariantMap object);
 
+	/// Sets the workspace where the client belongs to.
+	/// Takes care of removing the client from the previous workspace.
+	/// and adds it to the new one.
+	void setWorkspace(HyprlandWorkspace* workspace);
+
 	[[nodiscard]] QBindable<qint64> bindableAddress() { return &this->bAddress; }
 	[[nodiscard]] QBindable<QString> bindableTitle() { return &this->bTitle; }
 	[[nodiscard]] QBindable<HyprlandWorkspace*> bindableWorkspace() { return &this->bWorkspace; }
 	[[nodiscard]] QBindable<bool> bindableActive() { return &this->bActive; }
+	[[nodiscard]] QBindable<bool> bindableUrgent() { return &this->bUrgent; }
 
 signals:
 	void addressChanged();
 	void titleChanged();
 	void workspaceChanged();
 	void activeChanged();
+	void urgentChanged();
 
 private:
 	HyprlandIpc* ipc;
@@ -56,6 +65,7 @@ private:
 	    &HyprlandClient::workspaceChanged
 	);
 	Q_OBJECT_BINDABLE_PROPERTY(HyprlandClient, bool, bActive, &HyprlandClient::activeChanged);
+	Q_OBJECT_BINDABLE_PROPERTY(HyprlandClient, bool, bUrgent, &HyprlandClient::urgentChanged);
 };
 
 } // namespace qs::hyprland::ipc

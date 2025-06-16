@@ -2,9 +2,11 @@
 
 #include <qcontainerfwd.h>
 #include <qobject.h>
+#include <qproperty.h>
 #include <qtypes.h>
 
 #include "connection.hpp"
+#include "workspace.hpp"
 
 namespace qs::hyprland::ipc {
 
@@ -15,10 +17,13 @@ void HyprlandClient::updateInitial(
     const QString& title,
     const QString& workspaceName
 ) {
+	HyprlandWorkspace* workspace = this->ipc->findWorkspaceByName(workspaceName, true);
 	Qt::beginPropertyUpdateGroup();
 	this->bAddress = address;
 	this->bTitle = title;
-	this->bWorkspace = this->ipc->findWorkspaceByName(workspaceName, false);
+	if (workspace) {
+		this->setWorkspace(workspace);
+	}
 	Qt::endPropertyUpdateGroup();
 }
 
@@ -40,7 +45,20 @@ void HyprlandClient::updateFromObject(QVariantMap object) {
 	HyprlandWorkspace* workspace = this->ipc->findWorkspaceByName(workspaceName, false);
 	if (!workspace) return;
 
+	this->setWorkspace(workspace);
+}
+
+void HyprlandClient::setWorkspace(HyprlandWorkspace* workspace) {
+	if (this->bWorkspace == workspace) return;
+	Qt::beginPropertyUpdateGroup();
+	if (this->bWorkspace) {
+		// Remove from the previous workspace
+		this->bWorkspace->clients()->removeObject(this);
+	}
 	this->bWorkspace = workspace;
+	this->bWorkspace->clients()->insertObject(this, -1);
+	emit this->workspaceChanged();
+	Qt::endPropertyUpdateGroup();
 }
 
 } // namespace qs::hyprland::ipc
