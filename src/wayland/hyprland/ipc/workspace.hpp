@@ -25,7 +25,7 @@ class HyprlandWorkspace: public QObject {
 	/// focused. See also @@active.
 	Q_PROPERTY(bool focused READ default NOTIFY focusedChanged BINDABLE bindableFocused);
 	/// If this workspace currently has a fullscreen client.
-	Q_PROPERTY(bool hasFullscreen READ default NOTIFY focusedChanged BINDABLE bindableHasFullscreen);
+	Q_PROPERTY(bool hasFullscreen READ default NOTIFY hasFullscreenChanged BINDABLE bindableHasFullscreen);
 	/// If this workspace has a client which has emitted a urgent state.
 	Q_PROPERTY(bool urgent READ default NOTIFY urgentChanged BINDABLE bindableUrgent);
 	/// All hyprland clients (windows) that are part of the workspace.
