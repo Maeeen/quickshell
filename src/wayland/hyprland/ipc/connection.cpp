@@ -223,6 +223,7 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 	if (event->name == "configreloaded") {
 		this->refreshMonitors(true);
 		this->refreshWorkspaces(true);
+		this->refreshClients();
 	} else if (event->name == "monitoraddedv2") {
 		auto args = event->parseView(3);
 
@@ -415,13 +416,9 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 			return;
 		}
 
-		HyprlandClient* client = this->findClientByAddress(windowAddress);
+		HyprlandClient* client = this->findClientByAddress(windowAddress, false);
 		const bool existed = client != nullptr;
-		if (client) {
-			// It is not expected that the client is already tracked
-			qCWarning(logHyprlandIpc) << "Got openwindow event for client with address" << windowAddress
-			                          << "which was already tracked.";
-		} else {
+		if (!client) {
 			client = new HyprlandClient(this);
 		}
 		client->updateInitial(windowAddress, windowTitle, workspace->bindableName().value());
@@ -486,7 +483,9 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 
 		if (!ok) return;
 
-		HyprlandClient* client = this->findClientByAddress(windowAddress);
+		// It happens that Hyprland sends windowtitlev2 events before event
+		// "openwindow" is emitted, so let's preemptively create it
+		HyprlandClient* client = this->findClientByAddress(windowAddress, true);
 		if (!client) {
 			qCWarning(logHyprlandIpc) << "Got windowtitlev2 event for client with address"
 			                          << windowAddress << "which was not previously tracked.";
@@ -499,7 +498,7 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		auto windowAddress = args.at(0).toLongLong(&ok, 16);
 		auto workspaceName = QString::fromUtf8(args.at(2));
 
-		HyprlandClient* client = this->findClientByAddress(windowAddress);
+		HyprlandClient* client = this->findClientByAddress(windowAddress, false);
 		if (!client) {
 			qCWarning(logHyprlandIpc) << "Got movewindowv2 event for client with address" << windowAddress
 			                          << "which was not previously tracked.";
@@ -518,7 +517,10 @@ void HyprlandIpc::onEvent(HyprlandIpcEvent* event) {
 		auto args = event->parseView(1);
 		bool ok = false;
 		auto windowAddress = args.at(0).toLongLong(&ok, 16);
-		HyprlandClient* client = this->findClientByAddress(windowAddress);
+
+		// It happens that Hyprland sends urgent events before event
+		// "openwindow" is emitted, so let's preemptively create it
+		HyprlandClient* client = this->findClientByAddress(windowAddress, true);
 
 		if (!client) {
 			qCWarning(logHyprlandIpc) << "Got urgent event for client with address" << windowAddress
@@ -633,15 +635,25 @@ void HyprlandIpc::refreshWorkspaces(bool canCreate) {
 	});
 }
 
-HyprlandClient* HyprlandIpc::findClientByAddress(qint64 address) {
+HyprlandClient* HyprlandIpc::findClientByAddress(qint64 address, bool createIfMissing) {
 	const auto& mList = this->mClients.valueList();
-	HyprlandClient* workspace = nullptr;
+	HyprlandClient* client = nullptr;
 
-	auto workspaceIter = std::ranges::find_if(mList, [&](HyprlandClient* m) {
+	auto clientIter = std::ranges::find_if(mList, [&](HyprlandClient* m) {
 		return m->bindableAddress().value() == address;
 	});
 
-	return workspace = workspaceIter == mList.end() ? nullptr : *workspaceIter;
+	client = clientIter == mList.end() ? nullptr : *clientIter;
+
+	if (!client && createIfMissing) {
+		qCDebug(logHyprlandIpc) << "Client with address" << address
+		                        << "requested before creation, performing early init";
+		client = new HyprlandClient(this);
+		client->updateInitial(address, "", "");
+		this->mClients.insertObject(client, -1);
+	}
+
+	return client;
 }
 
 void HyprlandIpc::refreshClients() {
