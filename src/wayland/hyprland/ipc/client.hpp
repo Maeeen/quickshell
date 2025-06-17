@@ -8,25 +8,20 @@ namespace qs::hyprland::ipc {
 
 class HyprlandClient: public QObject {
 	Q_OBJECT;
+	// clang-format off
 	/// The address of the client
-	Q_PROPERTY(qint64 address READ default BINDABLE bindableAddress);
+	Q_PROPERTY(qint64 address READ default NOTIFY addressChanged BINDABLE bindableAddress);
 	/// The title of the client
 	Q_PROPERTY(QString title READ default NOTIFY titleChanged BINDABLE bindableTitle);
 	/// The workspace of the client (might be null)
-	Q_PROPERTY(
-	    qs::hyprland::ipc::HyprlandWorkspace* workspace READ default NOTIFY workspaceChanged BINDABLE
-	        bindableWorkspace
-	)
+	Q_PROPERTY(qs::hyprland::ipc::HyprlandWorkspace* workspace READ default NOTIFY workspaceChanged BINDABLE bindableWorkspace);
 	/// Whether the client is currently active or not
 	Q_PROPERTY(bool active READ default NOTIFY activeChanged BINDABLE bindableActive);
 	/// Whether the client is urgent or not
 	Q_PROPERTY(bool urgent READ default NOTIFY urgentChanged BINDABLE bindableUrgent);
 	/// The monitor where the client is currently located (might be null)
-	Q_PROPERTY(
-	    qs::hyprland::ipc::HyprlandMonitor* monitor READ default NOTIFY monitorChanged BINDABLE
-	        bindableMonitor
-	);
-
+	Q_PROPERTY(qs::hyprland::ipc::HyprlandMonitor* monitor READ default NOTIFY monitorChanged BINDABLE bindableMonitor);
+	// clang-format on
 	QML_ELEMENT;
 	QML_UNCREATABLE("HyprlandClients must be retrieved from the HyprlandIpc object.");
 
