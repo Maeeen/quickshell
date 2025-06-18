@@ -4,6 +4,7 @@ qt_add_library(quickshell-hyprland-ipc STATIC
 	workspace.cpp
 	qml.cpp
 	client.cpp
+	to_wayland_toplevel.cpp
 )
 
 qt_add_qml_module(quickshell-hyprland-ipc

@@ -15,6 +15,7 @@
 #include <qloggingcategory.h>
 #include <qobject.h>
 #include <qproperty.h>
+#include <qqml.h>
 #include <qtenvironmentvariables.h>
 #include <qtmetamacros.h>
 #include <qtypes.h>
@@ -22,8 +23,11 @@
 
 #include "../../../core/model.hpp"
 #include "../../../core/qmlscreen.hpp"
+#include "../../toplevel_management/qml.hpp"
 #include "client.hpp"
 #include "monitor.hpp"
+#include "to_wayland_toplevel.hpp"
+#include "toplevel_mapping.hpp"
 #include "workspace.hpp"
 
 namespace qs::hyprland::ipc {
@@ -64,6 +68,10 @@ HyprlandIpc::HyprlandIpc() {
 	QObject::connect(&this->eventSocket, &QLocalSocket::errorOccurred, this, &HyprlandIpc::eventSocketError);
 	QObject::connect(&this->eventSocket, &QLocalSocket::stateChanged, this, &HyprlandIpc::eventSocketStateChanged);
 	QObject::connect(&this->eventSocket, &QLocalSocket::readyRead, this, &HyprlandIpc::eventSocketReady);
+	// clang-format off
+	auto* toplevelMappingManager = HyprlandToplevelMappingManager::instance();
+	QObject::connect(toplevelMappingManager, &HyprlandToplevelMappingManager::toplevelAddressed,
+	                 this, &HyprlandIpc::toplevelAddressed);
 	// clang-format on
 
 	this->eventSocket.connectToServer(this->mEventSocketPath, QLocalSocket::ReadOnly);
@@ -114,6 +122,41 @@ void HyprlandIpc::eventSocketReady() {
 		this->onEvent(&this->event);
 		emit this->rawEvent(&this->event);
 	}
+}
+
+void HyprlandIpc::toplevelAddressed(
+    qs::wayland::toplevel_management::impl::ToplevelHandle* handle,
+    quint64 address
+) {
+	auto* toplevel = qs::wayland::toplevel_management::ToplevelManager::instance()->forImpl(handle);
+	if (toplevel == nullptr) return;
+
+	QObject* attachment = qmlAttachedPropertiesObject<ToplevelAttachment>(toplevel, false);
+	if (attachment == nullptr) {
+		qCWarning(logHyprlandIpc) << "Toplevel" << toplevel->title() << "addressed with" << address
+		                          << "but no ToplevelAttachment found.";
+		return;
+	}
+	if (auto* attachment2 = qobject_cast<ToplevelAttachment*>(attachment)) {
+		// TODO: change type
+		auto* client = this->findClientByAddress((qint64) address, true);
+		if (attachment2->bindableClient().value() == client) {
+			qCDebug(logHyprlandIpc) << "Toplevel" << toplevel->title() << "already has client"
+			                        << "for address" << address;
+			return;
+		} else {
+			qCDebug(logHyprlandIpc) << "Toplevel" << toplevel->title() << "addressed with" << address
+			                        << "setting client to"
+			                        << "was my time toshine!!";
+			attachment2->bindableClient().setValue(client);
+		}
+	} else {
+		qCWarning(logHyprlandIpc) << "Toplevel" << toplevel->title() << "addressed with" << address
+		                          << "but ToplevelAttachment is not HyprlandToplevel.";
+	}
+	auto* x = this->clients();
+
+	qCDebug(logHyprlandIpc) << "Toplevel" << toplevel->title() << "addressed with" << address << x;
 }
 
 void HyprlandIpc::makeRequest(

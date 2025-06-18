@@ -14,6 +14,8 @@
 
 #include "../../../core/model.hpp"
 #include "../../../core/qmlscreen.hpp"
+#include "../../toplevel_management/handle.hpp"
+#include "../../toplevel_management/manager.hpp"
 
 namespace qs::hyprland::ipc {
 
@@ -117,6 +119,9 @@ private slots:
 	void eventSocketError(QLocalSocket::LocalSocketError error) const;
 	void eventSocketStateChanged(QLocalSocket::LocalSocketState state);
 	void eventSocketReady();
+	// clang-format off
+	void toplevelAddressed(qs::wayland::toplevel_management::impl::ToplevelHandle* handle, quint64 address);
+	// clang-format on
 
 	void onFocusedMonitorDestroyed();
 
